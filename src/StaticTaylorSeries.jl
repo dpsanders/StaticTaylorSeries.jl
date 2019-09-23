@@ -10,10 +10,6 @@ struct StaticTaylor{N,T}
 end
 
 
-# function print_taylor(io::IO, t::StaticTaylor, variable=:x)
-
-
-
 function coeffstring(t::StaticTaylor, i, variable=:x)
 
     if i == 1  # order 0
@@ -46,7 +42,9 @@ end
 
 StaticTaylor{N}(v::NTuple{N,T}) where {N,T} = StaticTaylor(v)
 
-StaticTaylor{N}(iterable) where {N} = StaticTaylor{N}(SVector{N}(iterable))
+
+
+#StaticTaylor{N}(iterable) where {N} = StaticTaylor{N}(iterable)
 
 StaticTaylor{N}(iterable...) where {N} = StaticTaylor{N}(iterable)
 
@@ -70,20 +68,20 @@ function +(s::StaticTaylor{N,T}, t::StaticTaylor{N,T}) where {N,T}
 end
 
 function +(s::StaticTaylor{N,T}, α::Real) where {N,T}
-    StaticTaylor{N,T}(ntuple(i -> i == 1 ? s.coeffs[1] + α : s.coeffs[i], N))
+    return StaticTaylor{N,T}(ntuple(i -> i == 1 ? s.coeffs[1] + α : s.coeffs[i], N))
 end
 
-+(α::Real, s::StaticTaylor) == s + α
++(α::Real, s::StaticTaylor) = s + α
 
--(s::StaticTaylor{N,T}) where {N,T} = StaticTaylor(.-(s.coeffs))
+-(s::StaticTaylor) = StaticTaylor(.-(s.coeffs))
 
 function -(s::StaticTaylor{N,T}, t::StaticTaylor{N,T}) where {N,T}
     return StaticTaylor(s.coeffs .- t.coeffs)
 end
 
--(s::StaticTaylor{N,T}, α::Real) = s + (-α)
+-(s::StaticTaylor, α::Real) = s + (-α)
 
--(α::Real, s::StaticTaylor{N,T}) = -(s - a)
+-(α::Real, s::StaticTaylor) = -(s - a)
 
 
 
@@ -101,13 +99,13 @@ Base.literal_pow(::typeof(^), x::StaticTaylor, ::Val{p}) where {p} = x^p
 # end
 
 # The following is modified from StaticUnivariatePolynomials.jl
-@generated function Base.:*(p1::StaticTaylor{N,T}, p2::StaticTaylor{N,T}) where {N, T}
+@generated function Base.:*(p1::StaticTaylor{N,T}, p2::StaticTaylor{N,T}, max_degree=N) where {N, T}
     exprs = Any[nothing for i in 1:N]
     for i in 0 : N-1   # order is N-1
         for j in 0 : N-1
             k = i + j + 1  # setindex does not have offset
 
-            if k > N
+            if k > max_degree
                 continue
             end
 
@@ -128,6 +126,63 @@ Base.literal_pow(::typeof(^), x::StaticTaylor, ::Val{p}) where {p} = x^p
         StaticTaylor{N,T}(tuple($(exprs...)))
     end
 end
+
+@generated function mult(p1::StaticTaylor{N,T}, p2::StaticTaylor{N,T}, ::Val{max_degree}) where {N, T, max_degree}
+    exprs = Any[nothing for i in 1:max_degree]
+    for i in 0 : N-1   # order is N-1
+        for j in 0 : N-1
+            k = i + j + 1  # setindex does not have offset
+
+            if k > max_degree
+                continue
+            end
+
+            if exprs[k] === nothing
+                exprs[k] = :(p1[$i] * p2[$j])
+            else
+                exprs[k] = :(muladd(p1[$i], p2[$j], $(exprs[k])))
+            end
+        end
+    end
+
+    # Core.println("Generated code with N=$N:")
+    # Core.println(exprs)
+    # Core.println()
+
+    return quote
+        Base.@_inline_meta
+        StaticTaylor{max_degree,T}(tuple($(exprs...)))
+    end
+end
+#
+# @generated function *(p1::StaticTaylor{N,T}, p2::StaticTaylor{N,T}) where {N, T}
+#     exprs = Any[nothing for i in 1:N]
+#     for i in 0 : N-1   # order is N-1
+#         for j in 0 : N-1
+#             k = i + j + 1  # setindex does not have offset
+#
+#             if k > N
+#                 continue
+#             end
+#
+#             if exprs[k] === nothing
+#                 exprs[k] = :(p1[$i] * p2[$j])
+#             else
+#                 exprs[k] = :(muladd(p1[$i], p2[$j], $(exprs[k])))
+#             end
+#         end
+#     end
+#
+#     # Core.println("Generated code with N=$N:")
+#     # Core.println(exprs)
+#     # Core.println()
+#
+#     return quote
+#         Base.@_inline_meta
+#         StaticTaylor{N,T}(tuple($(exprs...)))
+#     end
+# end
+
 
 *(s::StaticTaylor, α::Real) = StaticTaylor(α .* s.coeffs)
 *(α::Real, s::StaticTaylor) = s * α
