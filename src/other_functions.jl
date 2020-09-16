@@ -45,3 +45,7 @@ function rem(a::STaylor1{N,T}, x::S) where {N, T<:Real, S<:Real}
     a = convert(STaylor1{N,R}, a)
     return rem(a, convert(R, x))
 end
+
+function mod2pi(a::STaylor1{N,T}) where {N, T<:Real}
+    return STaylor1{N,T}(ntuple(i -> i == 1 ? mod2pi(constant_term(a)) : a.coeffs[i], Val(N)))
+end

@@ -68,6 +68,12 @@ if !(VERSION < v"1.1" && testfile == "intervals.jl")
         @test isapprox(t1_mod[1], t2_mod[1], atol=1E-10)
         @test isapprox(t1_mod[2], t2_mod[2], atol=1E-10)
 
+        t1_mod2pi = mod2pi(t1)
+        t2_mod2pi = mod2pi(t2)
+        @test isapprox(t1_mod2pi[0], t2_mod2pi[0], atol=1E-10)
+        @test isapprox(t1_mod2pi[1], t2_mod2pi[1], atol=1E-10)
+        @test isapprox(t1_mod2pi[2], t2_mod2pi[2], atol=1E-10)
+
         t1_rem = rem(t1, 2.0)
         t2_rem = rem(t2, 2.0)
         @test isapprox(t1_rem[0], t2_rem[0], atol=1E-10)
