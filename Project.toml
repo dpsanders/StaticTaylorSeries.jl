@@ -3,8 +3,13 @@ uuid = "91725f60-9ab6-11e9-00d0-87fe6d51fd3a"
 authors = ["David Sanders <dpsanders@gmail.com>"]
 version = "0.1.0"
 
+[deps]
+Requires = "ae029012-a4dd-5104-9daa-d747884805df"
+TaylorSeries = "6aa5eb33-94cf-58f4-a9d0-e4b2c4fc25ea"
+
 [compat]
-julia = "1"
+Requires = "~1"
+TaylorSeries = "~0.10"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
