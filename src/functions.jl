@@ -138,26 +138,25 @@ end
 # Functions for STaylor1
 @generated function tan(a::STaylor1{N,T}) where {N, T <: Number}
     ex_calc = quote end
-    append!(ex_calc.args, Any[nothing for i in 1:N])
+    append!(ex_calc.args, Any[nothing for i in 1:(N+1)])
     syms = Symbol[Symbol("c$i") for i in 1:N]
+    syms2 = Symbol[Symbol("c2$i") for i in 1:N]
 
-    sym = syms[1]
-    ex_line = :($(sym) = tan(a[0]))
-    ex_calc.args[1] = ex_line
+    ex_calc.args[1] = :($(syms[1]) = tan(a[0]))
+    ex_calc.args[2] = :($(syms2[1]) = ($(syms[1]))^2)
 
-    #=
     for k in 1:(N-1)
         kT = convert(T,k)
         sym = syms[k+1]
         ex_line = :($kT * a[$k] * $(syms[1]))
         @inbounds for i = 1:k-1
-            ex_line = :($ex_line + $(kT-i) * a[$(k-i)] * $(syms[i+1]))
+            ex_line = :($ex_line + $(kT-i) * a[$(k-i)] * $(syms2[i+1]))
         end
         ex_line = :(($ex_line)/$kT)
         ex_line = :($sym = $ex_line)
-        ex_calc.args[k+1] = ex_line
+        ex_calc.args[k+2] = ex_line
+        #c2 = sqr(c)...
     end
-    =#
 
     exout = :(($(syms[1]),))
     for i = 2:N

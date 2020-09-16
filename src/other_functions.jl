@@ -25,3 +25,23 @@ deg2rad(z::STaylor1{N, T}) where {N, T<:Real} = z * (convert(float(T), pi) / 180
 
 rad2deg(z::STaylor1{N, T}) where {N, T<:AbstractFloat} = z * (180 / convert(T, pi))
 rad2deg(z::STaylor1{N, T}) where {N, T<:Real} = z * (180 / convert(float(T), pi))
+
+function mod(a::STaylor1{N,T}, x::T) where {N, T<:Real}
+    return STaylor1{N,T}(ntuple(i -> i == 1 ? mod(constant_term(a), x) : a.coeffs[i], Val(N)))
+end
+
+function mod(a::STaylor1{N,T}, x::S) where {N, T<:Real, S<:Real}
+    R = promote_type(T, S)
+    a = convert(STaylor1{N,R}, a)
+    return mod(a, convert(R, x))
+end
+
+function rem(a::STaylor1{N,T}, x::T) where {N, T<:Real}
+    return STaylor1{N,T}(ntuple(i -> i == 1 ? rem(constant_term(a), x) : a.coeffs[i], Val(N)))
+end
+
+function rem(a::STaylor1{N,T}, x::S) where {N, T<:Real, S<:Real}
+    R = promote_type(T, S)
+    a = convert(STaylor1{N,R}, a)
+    return rem(a, convert(R, x))
+end
