@@ -67,3 +67,41 @@ end
                return STaylor1{N,T}($exout)
             end
 end
+
+@generated function sqrt(a::STaylor1{N,T}) where {N, T <: Number}
+    ex_calc = quote end
+    append!(ex_calc.args, Any[nothing for i in 1:N])
+    syms = Symbol[Symbol("c$i") for i in 1:N]
+
+    for k = (lnull + 1):(N-1)
+        kT = convert(T,k)
+        sym = syms[k+1]
+        ex_line = :($kT * a[$k] * $(syms[1]))
+        @inbounds for i = 1:k-1
+            ex_line = :($ex_line + $(kT-i) * a[$(k-i)] * $(syms[i+1]))
+        end
+        ex_line = :(($ex_line)/$kT)
+        ex_line = :($sym = $ex_line)
+        ex_calc.args[k+1] = ex_line
+    end
+
+    exout = :(($(syms[1]),))
+    for i = 2:N
+        push!(exout.args, syms[i])
+    end
+    return quote
+               Base.@_inline_meta
+               l0nz = findfirst(a)
+               aux = zero(sqrt(constant_term(a)))
+               if l0nz < 0
+                   return
+               elseif l0nz%2 == 1
+                   throw(ArgumentError(
+                   """First non-vanishing Taylor1 coefficient must correspond
+                   to an **even power** in order to expand `sqrt` around 0."""))
+               end
+               lnull = div(l0nz, 2)
+               $ex_calc
+               return STaylor1{N,T}($exout)
+            end
+end
