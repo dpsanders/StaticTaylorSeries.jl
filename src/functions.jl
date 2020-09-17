@@ -145,16 +145,15 @@ end
     ex_calc.args[1] = :($(syms[1]) = tan(a[0]))
     ex_calc.args[2] = :($(syms2[1]) = ($(syms[1]))^2)
 
-    for k in 1:(N-1)
-        kT = convert(T,k)
-        sym = syms[k+1]
-        ex_line = :($kT * a[$k] * $(syms[1]))
-        @inbounds for i = 1:k-1
-            ex_line = :($ex_line + $(kT-i) * a[$(k-i)] * $(syms2[i+1]))
+    for k = 1:(N - 1)
+        kT = convert(T, k)
+        ex_line = :($(kT - 1)*a[$(k - 1)]*$(syms2[1]))
+        @inbounds for i = 1:(k - 1)
+            ex_line = :($ex_line + $(kT - i) * a[$(k - i)] * $(syms2[i + 1]))
         end
         ex_line = :(($ex_line)/$kT)
-        ex_line = :($sym = $ex_line)
-        ex_calc.args[k+2] = ex_line
+        ex_line = :($(syms[k + 1]) = $ex_line)
+        ex_calc.args[k + 2] = ex_line
         #c2 = sqr(c)...
     end
 

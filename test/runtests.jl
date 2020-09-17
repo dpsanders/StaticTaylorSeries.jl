@@ -58,7 +58,7 @@ if !(VERSION < v"1.1" && testfile == "intervals.jl")
         # check that STaylor1 and Taylor yeild same result
         t1 = STaylor1([1.1, 2.1, 3.1])
         t2 = Taylor1([1.1, 2.1, 3.1])
-        for f in (exp, abs, log)
+        for f in (exp, abs, log, mod2pi)
             @test test_vs_Taylor1(f(t1), f(t2))
         end
 
@@ -67,12 +67,6 @@ if !(VERSION < v"1.1" && testfile == "intervals.jl")
         @test isapprox(t1_mod[0], t2_mod[0], atol=1E-10)
         @test isapprox(t1_mod[1], t2_mod[1], atol=1E-10)
         @test isapprox(t1_mod[2], t2_mod[2], atol=1E-10)
-
-        t1_mod2pi = mod2pi(t1)
-        t2_mod2pi = mod2pi(t2)
-        @test isapprox(t1_mod2pi[0], t2_mod2pi[0], atol=1E-10)
-        @test isapprox(t1_mod2pi[1], t2_mod2pi[1], atol=1E-10)
-        @test isapprox(t1_mod2pi[2], t2_mod2pi[2], atol=1E-10)
 
         t1_rem = rem(t1, 2.0)
         t2_rem = rem(t2, 2.0)
