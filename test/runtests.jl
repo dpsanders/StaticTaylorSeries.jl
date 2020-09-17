@@ -58,7 +58,7 @@ if !(VERSION < v"1.1" && testfile == "intervals.jl")
         # check that STaylor1 and Taylor yeild same result
         t1 = STaylor1([1.1, 2.1, 3.1])
         t2 = Taylor1([1.1, 2.1, 3.1])
-        for f in (exp, abs, log, mod2pi)
+        for f in (exp, abs, log, sin, cos, sinh, cosh, mod2pi)
             @test test_vs_Taylor1(f(t1), f(t2))
         end
 
@@ -103,5 +103,16 @@ if !(VERSION < v"1.1" && testfile == "intervals.jl")
         @test conj(a) == STaylor1([5.0, 1.2, 2.3, 4.5, 0.0])
         @test a == abs(a)
         @test a == abs(-a)
+
+        @test convert(STaylor1{3,Float64}, STaylor1{3,Float64}((1.1, 2.2, 3.3))) == STaylor1{3,Float64}((1.1, 2.2, 3.3))
+        @test convert(STaylor1{3,Float64}, 1) == STaylor1(1.0, Val(3))
+        @test convert(STaylor1{3,Float64}, 1.2) == STaylor1(1.2, Val(3))
+
+        #ta(a) = STaylor1(1.0, Val(15))
+        @test promote(1.0, STaylor1(1.0, Val(15)))[1] == STaylor1(1.0, Val(16))
+        @test promote(0, STaylor1(1.0, Val(15)))[1] == STaylor1(0.0, Val(16))
+        @test eltype(promote(STaylor1(1, Val(15)),2)[2]) == Int
+        @test eltype(promote(STaylor1(1.0, Val(15)), 1.1)[2]) == Float64
+        @test eltype(promote(0, STaylor1(1.0, Val(15)))[1]) == Float64
     end
 end

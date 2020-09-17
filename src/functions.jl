@@ -65,73 +65,48 @@ end
             end
 end
 
-# Functions for STaylor1
-@generated function sin(a::STaylor1{N,T}) where {N, T <: Number}
+sin(a::STaylor1{N,T}) where {N, T <: Number} = sincos(a)[1]
+cos(a::STaylor1{N,T}) where {N, T <: Number} = sincos(a)[2]
+@generated function sincos(a::STaylor1{N,T}) where {N, T <: Number}
+
     ex_calc = quote end
-    append!(ex_calc.args, Any[nothing for i in 1:N])
-    syms = Symbol[Symbol("c$i") for i in 1:N]
+    append!(ex_calc.args, Any[nothing for i in 1:(2*N)])
 
-    sym = syms[1]
-    ex_line = :($(sym) = sin(a[0]))
-    ex_calc.args[1] = ex_line
+    syms_s = Symbol[Symbol("c$i") for i in 1:N]
+    syms_c = Symbol[Symbol("c2$i") for i in 1:N]
 
-    #=
-    for k in 1:(N-1)
-        kT = convert(T,k)
-        sym = syms[k+1]
-        ex_line = :($kT * a[$k] * $(syms[1]))
-        @inbounds for i = 1:k-1
-            ex_line = :($ex_line + $(kT-i) * a[$(k-i)] * $(syms[i+1]))
+    ex_line_s = :($(syms_s[1]) = sin(a[0]))
+    ex_line_c = :($(syms_c[1]) = cos(a[0]))
+    ex_calc.args[1] = ex_line_s
+    ex_calc.args[2] = ex_line_c
+
+    for k = 1:(N - 1)
+        ex_line_s = :(a[1]*$(syms_c[k]))
+        ex_line_c = :(-a[1]*$(syms_s[k]))
+        for i = 2:k
+            ex_line_s = :($ex_line_s + $i*a[$i]*$(syms_c[(k - i + 1)]))
+            ex_line_c = :($ex_line_c - $i*a[$i]*$(syms_s[(k - i + 1)]))
         end
-        ex_line = :(($ex_line)/$kT)
-        ex_line = :($sym = $ex_line)
-        ex_calc.args[k+1] = ex_line
+        ex_line_s = :($(syms_s[k + 1]) = ($ex_line_s)/$k)
+        ex_line_c = :($(syms_c[k + 1]) = ($ex_line_c)/$k)
+        ex_calc.args[2*k + 1] = ex_line_s
+        ex_calc.args[2*k + 2] = ex_line_c
     end
-    =#
 
-    exout = :(($(syms[1]),))
+    exout_s = :(($(syms_s[1]),))
     for i = 2:N
-        push!(exout.args, syms[i])
+        push!(exout_s.args, syms_s[i])
     end
+
+    exout_c = :(($(syms_c[1]),))
+    for i = 2:N
+        push!(exout_c.args, syms_c[i])
+    end
+
     return quote
                Base.@_inline_meta
                $ex_calc
-               return STaylor1{N,T}($exout)
-            end
-end
-
-# Functions for STaylor1
-@generated function cos(a::STaylor1{N,T}) where {N, T <: Number}
-    ex_calc = quote end
-    append!(ex_calc.args, Any[nothing for i in 1:N])
-    syms = Symbol[Symbol("c$i") for i in 1:N]
-
-    sym = syms[1]
-    ex_line = :($(sym) = cos(a[0]))
-    ex_calc.args[1] = ex_line
-
-    #=
-    for k in 1:(N-1)
-        kT = convert(T,k)
-        sym = syms[k+1]
-        ex_line = :($kT * a[$k] * $(syms[1]))
-        @inbounds for i = 1:k-1
-            ex_line = :($ex_line + $(kT-i) * a[$(k-i)] * $(syms[i+1]))
-        end
-        ex_line = :(($ex_line)/$kT)
-        ex_line = :($sym = $ex_line)
-        ex_calc.args[k+1] = ex_line
-    end
-    =#
-
-    exout = :(($(syms[1]),))
-    for i = 2:N
-        push!(exout.args, syms[i])
-    end
-    return quote
-               Base.@_inline_meta
-               $ex_calc
-               return STaylor1{N,T}($exout)
+               return STaylor1{N,T}($exout_s), STaylor1{N,T}($exout_c)
             end
 end
 
@@ -273,73 +248,48 @@ end
             end
 end
 
-# Functions for STaylor1
-@generated function sinh(a::STaylor1{N,T}) where {N, T <: Number}
+sinh(a::STaylor1{N,T}) where {N, T <: Number} = sinhcosh(a)[1]
+cosh(a::STaylor1{N,T}) where {N, T <: Number} = sinhcosh(a)[2]
+@generated function sinhcosh(a::STaylor1{N,T}) where {N, T <: Number}
+
     ex_calc = quote end
-    append!(ex_calc.args, Any[nothing for i in 1:N])
-    syms = Symbol[Symbol("c$i") for i in 1:N]
+    append!(ex_calc.args, Any[nothing for i in 1:(2*N)])
 
-    sym = syms[1]
-    ex_line = :($(sym) = sinh(a[0]))
-    ex_calc.args[1] = ex_line
+    syms_s = Symbol[Symbol("c$i") for i in 1:N]
+    syms_c = Symbol[Symbol("c2$i") for i in 1:N]
 
-    #=
-    for k in 1:(N-1)
-        kT = convert(T,k)
-        sym = syms[k+1]
-        ex_line = :($kT * a[$k] * $(syms[1]))
-        @inbounds for i = 1:k-1
-            ex_line = :($ex_line + $(kT-i) * a[$(k-i)] * $(syms[i+1]))
+    ex_line_s = :($(syms_s[1]) = sinh(a[0]))
+    ex_line_c = :($(syms_c[1]) = cosh(a[0]))
+    ex_calc.args[1] = ex_line_s
+    ex_calc.args[2] = ex_line_c
+
+    for k = 1:(N - 1)
+        ex_line_s = :(a[1]*$(syms_c[k]))
+        ex_line_c = :(a[1]*$(syms_s[k]))
+        for i = 2:k
+            ex_line_s = :($ex_line_s + $i*a[$i]*$(syms_c[(k - i + 1)]))
+            ex_line_c = :($ex_line_c + $i*a[$i]*$(syms_s[(k - i + 1)]))
         end
-        ex_line = :(($ex_line)/$kT)
-        ex_line = :($sym = $ex_line)
-        ex_calc.args[k+1] = ex_line
+        ex_line_s = :($(syms_s[k + 1]) = ($ex_line_s)/$k)
+        ex_line_c = :($(syms_c[k + 1]) = ($ex_line_c)/$k)
+        ex_calc.args[2*k + 1] = ex_line_s
+        ex_calc.args[2*k + 2] = ex_line_c
     end
-    =#
 
-    exout = :(($(syms[1]),))
+    exout_s = :(($(syms_s[1]),))
     for i = 2:N
-        push!(exout.args, syms[i])
+        push!(exout_s.args, syms_s[i])
     end
+
+    exout_c = :(($(syms_c[1]),))
+    for i = 2:N
+        push!(exout_c.args, syms_c[i])
+    end
+
     return quote
                Base.@_inline_meta
                $ex_calc
-               return STaylor1{N,T}($exout)
-            end
-end
-
-# Functions for STaylor1
-@generated function cosh(a::STaylor1{N,T}) where {N, T <: Number}
-    ex_calc = quote end
-    append!(ex_calc.args, Any[nothing for i in 1:N])
-    syms = Symbol[Symbol("c$i") for i in 1:N]
-
-    sym = syms[1]
-    ex_line = :($(sym) = cosh(a[0]))
-    ex_calc.args[1] = ex_line
-
-    #=
-    for k in 1:(N-1)
-        kT = convert(T,k)
-        sym = syms[k+1]
-        ex_line = :($kT * a[$k] * $(syms[1]))
-        @inbounds for i = 1:k-1
-            ex_line = :($ex_line + $(kT-i) * a[$(k-i)] * $(syms[i+1]))
-        end
-        ex_line = :(($ex_line)/$kT)
-        ex_line = :($sym = $ex_line)
-        ex_calc.args[k+1] = ex_line
-    end
-    =#
-
-    exout = :(($(syms[1]),))
-    for i = 2:N
-        push!(exout.args, syms[i])
-    end
-    return quote
-               Base.@_inline_meta
-               $ex_calc
-               return STaylor1{N,T}($exout)
+               return STaylor1{N,T}($exout_s), STaylor1{N,T}($exout_c)
             end
 end
 
