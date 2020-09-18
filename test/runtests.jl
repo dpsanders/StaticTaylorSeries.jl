@@ -58,7 +58,7 @@ if !(VERSION < v"1.1" && testfile == "intervals.jl")
         # check that STaylor1 and Taylor yeild same result
         t1 = STaylor1([1.1, 2.1, 3.1])
         t2 = Taylor1([1.1, 2.1, 3.1])
-        for f in (exp, abs, log, sin, cos, sinh, cosh, mod2pi)
+        for f in (exp, abs, log, sin, cos, tan, sinh, cosh, tanh, mod2pi)
             @test test_vs_Taylor1(f(t1), f(t2))
         end
 

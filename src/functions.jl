@@ -112,30 +112,55 @@ end
 
 # Functions for STaylor1
 @generated function tan(a::STaylor1{N,T}) where {N, T <: Number}
+
     ex_calc = quote end
-    append!(ex_calc.args, Any[nothing for i in 1:(N+1)])
+    append!(ex_calc.args, Any[nothing for i in 1:(3*N)])
     syms = Symbol[Symbol("c$i") for i in 1:N]
     syms2 = Symbol[Symbol("c2$i") for i in 1:N]
 
-    ex_calc.args[1] = :($(syms[1]) = tan(a[0]))
-    ex_calc.args[2] = :($(syms2[1]) = ($(syms[1]))^2)
+    for i = 1:N
+        ex_calc.args[i] = :($(syms2[i]) = 0.0)
+    end
+
+    ex_line_c = :($(syms[1]) = tan(a[0]))
+    ex_line_c2 = :($(syms2[1]) = ($(syms[1]))^2)
+    ex_calc.args[1 + N] = ex_line_c
+    ex_calc.args[2 + N] = ex_line_c2
 
     for k = 1:(N - 1)
-        kT = convert(T, k)
-        ex_line = :($(kT - 1)*a[$(k - 1)]*$(syms2[1]))
-        @inbounds for i = 1:(k - 1)
-            ex_line = :($ex_line + $(kT - i) * a[$(k - i)] * $(syms2[i + 1]))
+
+        kodd = k%2
+        kend = div(k - 2 + kodd, 2)
+        kdiv2 = div(k, 2)
+
+        ex_line_c = :($(k-1)*a[$(k-1)]*$(syms2[2]))
+        for i = 1:(k - 1)
+            q = k - i
+            ex_line_c = :($ex_line_c + ($q)*a[$q]*$(syms2[i + 1]))
         end
-        ex_line = :(($ex_line)/$kT)
-        ex_line = :($(syms[k + 1]) = $ex_line)
-        ex_calc.args[k + 2] = ex_line
-        #c2 = sqr(c)...
+        ex_line_c = :(a[$k] - ($ex_line_c)/$k)
+        ex_line_c = :($(syms[k + 1]) = $ex_line_c)
+        ex_calc.args[2*k + 1 + N] = ex_line_c
+
+        ex_line_c2 = :(a[0]*a[$k])
+        for i = 1:kend
+            ex_line_c2 = :($ex_line_c2 + a[$i]*a[$k - $i])
+        end
+        ex_line_c2 = :(2*$ex_line_c2)
+
+        if kodd != 1
+            ex_line_c2 = :($ex_line_c2 + a[$kdiv2]^2)
+        end
+
+        ex_line_c2 = :($(syms2[k + 1]) = $ex_line_c2)
+        ex_calc.args[2*k + 2 + N] = ex_line_c2
     end
 
     exout = :(($(syms[1]),))
     for i = 2:N
         push!(exout.args, syms[i])
     end
+
     return quote
                Base.@_inline_meta
                $ex_calc
@@ -295,32 +320,51 @@ end
 
 # Functions for STaylor1
 @generated function tanh(a::STaylor1{N,T}) where {N, T <: Number}
+
     ex_calc = quote end
-    append!(ex_calc.args, Any[nothing for i in 1:N])
+    append!(ex_calc.args, Any[nothing for i in 1:(2*N)])
     syms = Symbol[Symbol("c$i") for i in 1:N]
+    syms2 = Symbol[Symbol("c2$i") for i in 1:N]
 
-    sym = syms[1]
-    ex_line = :($(sym) = tanh(a[0]))
-    ex_calc.args[1] = ex_line
+    ex_line_c = :($(syms[1]) = tanh(a[0]))
+    ex_line_c2 = :($(syms2[1]) = ($(syms[1]))^2)
+    ex_calc.args[1] = ex_line_c
+    ex_calc.args[2] = ex_line_c2
 
-    #=
-    for k in 1:(N-1)
-        kT = convert(T,k)
-        sym = syms[k+1]
-        ex_line = :($kT * a[$k] * $(syms[1]))
-        @inbounds for i = 1:k-1
-            ex_line = :($ex_line + $(kT-i) * a[$(k-i)] * $(syms[i+1]))
+    for k = 1:(N - 1)
+
+        kodd = k%2
+        kend = div(k - 2 + kodd, 2)
+        kdiv2 = div(k, 2)
+
+        ex_line_c = :($k*a[$k]*$(syms2[1]))
+        for i = 1:(k - 1)
+            q = k - i
+            ex_line_c = :($ex_line_c + ($q)*a[$q]*$(syms2[i+1]))
         end
-        ex_line = :(($ex_line)/$kT)
-        ex_line = :($sym = $ex_line)
-        ex_calc.args[k+1] = ex_line
+        ex_line_c = :(a[$k] - $ex_line_c/$k)
+        ex_line_c = :($(syms[k + 1]) = $ex_line_c)
+        ex_calc.args[2*k + 1] = ex_line_c
+
+        ex_line_c2 = :(a[1]*a[$k])
+        @inbounds for i = 1:kend
+            ex_line_c2 = :($ex_line_c2 + a[$i + 1]*a[$k - $i])
+        end
+        ex_line_c2 = :(2*$ex_line_c2)
+
+        if kodd != 1
+            ex_line_c2 = :($ex_line_c2 + a[$kdiv2 + 1]^2)
+        end
+
+        ex_line_c2 = :($(syms2[k + 1]) = $ex_line_c2)
+        ex_calc.args[2*k + 2] = ex_line_c2
     end
-    =#
 
     exout = :(($(syms[1]),))
     for i = 2:N
         push!(exout.args, syms[i])
     end
+
     return quote
                Base.@_inline_meta
                $ex_calc
