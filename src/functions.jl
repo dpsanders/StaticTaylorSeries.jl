@@ -111,10 +111,11 @@ cos(a::STaylor1{N,T}) where {N, T <: Number} = sincos(a)[2]
 end
 
 # Functions for STaylor1
+#=
 @generated function tan(a::STaylor1{N,T}) where {N, T <: Number}
 
     ex_calc = quote end
-    append!(ex_calc.args, Any[nothing for i in 1:(3*N)])
+    append!(ex_calc.args, Any[nothing for i in 1:(4*N)])
     syms = Symbol[Symbol("c$i") for i in 1:N]
     syms2 = Symbol[Symbol("c2$i") for i in 1:N]
 
@@ -124,8 +125,8 @@ end
 
     ex_line_c = :($(syms[1]) = tan(a[0]))
     ex_line_c2 = :($(syms2[1]) = ($(syms[1]))^2)
-    ex_calc.args[1 + N] = ex_line_c
-    ex_calc.args[2 + N] = ex_line_c2
+    ex_calc.args[N + 1] = ex_line_c
+    ex_calc.args[N + 2] = ex_line_c2
 
     for k = 1:(N - 1)
 
@@ -138,9 +139,9 @@ end
             q = k - i
             ex_line_c = :($ex_line_c + ($q)*a[$q]*$(syms2[i + 1]))
         end
-        ex_line_c = :(a[$k] - ($ex_line_c)/$k)
+        ex_line_c = :(a[$k] + ($ex_line_c)/$k)
         ex_line_c = :($(syms[k + 1]) = $ex_line_c)
-        ex_calc.args[2*k + 1 + N] = ex_line_c
+        ex_calc.args[(3*k-2) + N + 2] = ex_line_c
 
         ex_line_c2 = :(a[0]*a[$k])
         for i = 1:kend
@@ -153,7 +154,10 @@ end
         end
 
         ex_line_c2 = :($(syms2[k + 1]) = $ex_line_c2)
-        ex_calc.args[2*k + 2 + N] = ex_line_c2
+        ex_calc.args[(3*k-1) + 2 + N] = ex_line_c2
+        blar = k + 1
+        blar_str = "c$(blar) "
+        ex_calc.args[3*k + N + 2] = :(println($blar_str*string($(syms[k + 1]))))
     end
 
     exout = :(($(syms[1]),))
@@ -167,8 +171,10 @@ end
                return STaylor1{N,T}($exout)
             end
 end
+=#
 
 # Functions for STaylor1
+#=
 @generated function asin(a::STaylor1{N,T}) where {N, T <: Number}
     ex_calc = quote end
     append!(ex_calc.args, Any[nothing for i in 1:N])
@@ -202,8 +208,10 @@ end
                return STaylor1{N,T}($exout)
             end
 end
+=#
 
 # Functions for STaylor1
+#=
 @generated function acos(a::STaylor1{N,T}) where {N, T <: Number}
     ex_calc = quote end
     append!(ex_calc.args, Any[nothing for i in 1:N])
@@ -237,8 +245,10 @@ end
                return STaylor1{N,T}($exout)
             end
 end
+=#
 
 # Functions for STaylor1
+#=
 @generated function atan(a::STaylor1{N,T}) where {N, T <: Number}
     ex_calc = quote end
     append!(ex_calc.args, Any[nothing for i in 1:N])
@@ -272,6 +282,7 @@ end
                return STaylor1{N,T}($exout)
             end
 end
+=#
 
 sinh(a::STaylor1{N,T}) where {N, T <: Number} = sinhcosh(a)[1]
 cosh(a::STaylor1{N,T}) where {N, T <: Number} = sinhcosh(a)[2]

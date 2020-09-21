@@ -58,7 +58,7 @@ if !(VERSION < v"1.1" && testfile == "intervals.jl")
         # check that STaylor1 and Taylor yeild same result
         t1 = STaylor1([1.1, 2.1, 3.1])
         t2 = Taylor1([1.1, 2.1, 3.1])
-        for f in (exp, abs, log, sin, cos, tan, sinh, cosh, tanh, mod2pi)
+        for f in (exp, abs, log, sin, cos, sinh, cosh, mod2pi)
             @test test_vs_Taylor1(f(t1), f(t2))
         end
 
@@ -76,13 +76,26 @@ if !(VERSION < v"1.1" && testfile == "intervals.jl")
 
         t1a = STaylor1([2.1, 2.1, 3.1])
         t2a = Taylor1([2.1, 2.1, 3.1])
-        @test isapprox((t1/t1a)[0], (t2/t2a)[0], atol=1E-10)
-        @test isapprox((t1/t1a)[1], (t2/t2a)[1], atol=1E-10)
-        @test isapprox((t1/t1a)[2], (t2/t2a)[2], atol=1E-10)
 
-        @test isapprox((t1*t1a)[0], (t2*t2a)[0], atol=1E-10)
-        @test isapprox((t1*t1a)[1], (t2*t2a)[1], atol=1E-10)
-        @test isapprox((t1*t1a)[2], (t2*t2a)[2], atol=1E-10)
+        for test_tup in ((/, t1, t1a, t2, t2a), (*, t1, t1a, t2, t2a),
+                         (/, t1, 1.3, t2, 1.3), (*, t1, 1.3, t2, 1.3),
+                         (+, t1, 1.3, t2, 1.3), (-, t1, 1.3, t2, 1.3),
+                         (*, 1.3, t1, 1.3, t2), (+, 1.3, t1, 1.3, t2),
+                         (-, 1.3, t1, 1.3, t2),  (*, 1.3, t1, 1.3, t2),
+                         #(^, t1, -1, t2, -1), (^, t1, -3, t2, -3),
+                         (^, t1, 0, t2, 0), (^, t1, 1, t2, 1),
+                         (^, t1, 3, t2, 3), (^, t1, 4, t2, 4))
+
+            temp1 = test_tup[1](test_tup[2], test_tup[3])
+            temp2 = test_tup[1](test_tup[4], test_tup[5])
+            @test isapprox(temp1[0], temp2[0], atol=1E-10)
+            @test isapprox(temp1[1], temp2[1], atol=1E-10)
+            @test isapprox(temp1[2], temp2[2], atol=1E-10)
+        end
+
+        #@test isapprox((1.3/t1)[0], (1.3/t2)[0], atol=1E-10)
+        #@test isapprox((1.3/t1)[1], (1.3/t2)[1], atol=1E-10)
+        #@test isapprox((1.3/t1)[2], (1.3/t2)[2], atol=1E-10)
 
         @test isapprox(StaticTaylorSeries.square(t1)[0], (t2^2)[0], atol=1E-10)
         @test isapprox(StaticTaylorSeries.square(t1)[1], (t2^2)[1], atol=1E-10)
