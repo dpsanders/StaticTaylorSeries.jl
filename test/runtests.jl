@@ -2,7 +2,7 @@ using Test
 
 # Skipping tests with intervals, since IntervalArithmetic.jl requires Julia v1.1+
 if !(VERSION < v"1.1" && testfile == "intervals.jl")
-    using TaylorSeries, StaticTaylorSeries
+    using TaylorSeries, StaticTaylorSeries, IntervalArithmetic
 
     function test_vs_Taylor1(x, y)
         flag = true
@@ -103,6 +103,10 @@ if !(VERSION < v"1.1" && testfile == "intervals.jl")
         a = STaylor1([0.0, 1.2, 2.3, 4.5, 0.0])
         @test findfirst(a) == 1
         @test findlast(a) == 3
+
+        eval_staylor = StaticTaylorSeries.evaluate(a, Interval(1.0,2.0))
+        @test isapprox(eval_staylor.lo, 7.99999, atol = 1E-4)
+        @test isapprox(eval_staylor.hi, 47.6001, atol = 1E-4)
 
         a = STaylor1([5.0, 1.2, 2.3, 4.5, 0.0])
         @test isapprox(deg2rad(a)[0], 0.087266, atol=1E-5)

@@ -25,7 +25,7 @@ export getcoeff, derivative, integrate, differentiate,
        get_order, get_numvars, set_variables, get_variables,
        get_variable_names, get_variable_symbols,
        taylor_expand, update!, constant_term, linear_polynomial,
-       normalize_taylor
+       normalize_taylor, evaluate
 
 include("constructors.jl")
 include("conversion.jl")
