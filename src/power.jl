@@ -1,7 +1,7 @@
 function ^(a::STaylor1{N,T}, n::Integer) where {N,T<:Real}
     n == 0 && return one(a)
     n == 1 && return a
-    n == 2 && return TaylorSeries.square(a)
+    n == 2 && return square(a)
     #n < 0 && return a^float(n)
     return power_by_squaring(a, n)
 end
@@ -30,6 +30,77 @@ function power_by_squaring(x::STaylor1{N,T}, p::Integer) where {N,T<:Number}
     end
 
     return y
+end
+
+@generated function ^(a::STaylor1{N,T}, r::S) where {N, T<:Number, S<:Real}
+
+    start_quote = quote
+        (iszero(r)) && return one(T)
+        (isone(r)) && return a
+        (r == 2) && return square(a)
+        (r == 0.5) && return sqrt(a)
+    end
+
+    #exout = :(($(syms[1]),))
+    #for i = 2:N
+    #    push!(exout.args, syms[i])
+    #end
+
+    return quote
+        iszero(r) && return one(a)
+        r == 1 && return a
+        r == 2 && return square(a)
+        r == 1/2 && return sqrt(a)
+
+        c = STaylor1(zero(T), Val{N}())
+        for k = 0:(N - 1)
+            $continue_quote
+
+            # First non-zero coefficient
+            l0 = findfirst(a)
+            if l0 < 0
+                c = STaylor1{N,T}(ntuple(i -> (i == k) ? zero(T) : c[i],  N))
+                continue
+            end
+
+            # The first non-zero coefficient of the result; must be integer
+            !isinteger(r*l0) && throw(ArgumentError(
+                """The 0th order Taylor1 coefficient must be non-zero
+                to raise the Taylor1 polynomial to a non-integer exponent."""))
+            lnull = trunc(Int, r*l0 )
+            kprime = k - lnull
+            if (kprime < 0) || (lnull > a.order)
+                c = STaylor1{N,T}(ntuple(i -> (i == k) ? zero(T) : c[i],  N))
+                continue
+            end
+
+            # Relevant for positive integer r, to avoid round-off errors
+            if isinteger(r) && (k > r*findlast(a))
+                c = STaylor1{N,T}(ntuple(i -> (i == k) ? zero(T) : c[i],  N))
+                continue
+            end
+
+            if k == lnull
+                c = STaylor1{N,T}(ntuple(i -> (i == k) ? a[l0]^r : c[i],  N))
+                continue
+            end
+
+            # The recursion formula
+            if l0 + kprime ≤ (N - 1)
+                c = STaylor1{N,T}(ntuple(i -> (i == k) ? (r*kprime*c[lnull]*a[l0 + kprime]) : c[i],  N))
+            else
+                c = STaylor1{N,T}(ntuple(i -> (i == k) ? zero(T) : c[i],  N))
+            end
+            for i = 1:(k - lnull - 1)
+                ((i + lnull) > (N - 1) || (l0 + kprime - i > (N - 1))) && continue
+                aux = r*(kprime - i) - i
+                c = STaylor1{N,T}(ntuple(i -> (i == k) ? c[k] + aux*c[i+lnull]*a[l0+kprime-i] : c[i],  N))
+            end
+            c = STaylor1{N,T}(ntuple(i -> (i == k) ? c[k]/kprime*a[l0] : c[i],  N))
+        end
+
+        return c
+    end
 end
 
 @generated function square(a::STaylor1{N,T}) where {N, T<:Number}
@@ -102,66 +173,95 @@ end
             end
 end
 
+function tup_sel(i, vargs)
+    return vargs[i+1]
+end
 
-@generated function sqrt(a::STaylor1{N,T}) where {N, T <: Number}
+@generated function sqrt(a::STaylor1{N,T}) where {N,T<:Number}
+
     ex_calc = quote end
     append!(ex_calc.args, Any[nothing for i in 1:N])
     syms = Symbol[Symbol("c$i") for i in 1:N]
+    ctuple = Expr(:tuple)
+    for i = 1:N
+        push!(ctuple.args, syms[i])
+    end
 
-    start_expr = quote
-                    Base.@_inline_meta
-                    l0nz = findfirst(a)
-                    aux = zero(T)
-                    if l0nz < 0
-                        return
-                    elseif l0nz%2 == 1
-                        throw(ArgumentError(
-                        """First non-vanishing Taylor1 coefficient must correspond
-                        to an **even power** in order to expand `sqrt` around 0."""))
+    # First non-zero coefficient
+    expr_quote = quote
+        l0nz = findfirst(a)
+        aux = zero(T)
+        if l0nz < 0
+            return zero(STaylor1{N,T})
+        elseif l0nz%2 == 1 # l0nz must be pair
+            throw(ArgumentError(
+            """First non-vanishing Taylor1 coefficient must correspond
+            to an **even power** in order to expand `sqrt` around 0."""))
+        end
+
+        # The last l0nz coefficients are set to zero.
+        lnull = div(l0nz, 2)
+    end
+
+    for i = 1:N
+        push!(ex_calc.args, :($(syms[i]) = zero(T)))
+    end
+
+
+    for i = 1:N
+        switch_expr = :((lnull == $(i-1)) && ($(syms[i]) = sqrt(a[l0nz])))
+        expr_quote = quote
+            $expr_quote
+            $switch_expr
+        end
+    end
+
+    for k = 0:(N - 1)
+        symk = syms[k + 1]
+        temp_expr = quote
+            if $k >= lnull + 1
+                if $k == lnull
+                    $symk = sqrt(a[2*lnull])
+                else
+                    kodd = ($k - lnull)%2
+                    kend = div($k - lnull - 2 + kodd, 2)
+                    imax = min(lnull + kend, N - 1)
+                    imin = max(lnull + 1, $k + lnull - (N - 1))
+                    if imin ≤ imax
+                        tup_in = $ctuple
+                        $symk = tup_sel(imin, tup_in)*tup_sel($k + lnull - imin, tup_in)
                     end
-                    lnull = div(l0nz, 2)
-                 end
-
-    for k = (lnull + 1):(N-1)
-
-        pre_loop = quote
-            if k == lnull
-                @inbounds $(syms[k]) = sqrt(aa[2*lnull])
-                return continue
+                    for i = (imin + 1):imax
+                        tup_in = $ctuple
+                        $symk += tup_sel(i, tup_in)*tup_sel($k + lnull - i, tup_in)
+                    end
+                    if $k + lnull ≤ (N - 1)
+                        aux = a[$k + lnull] - 2*$symk
+                    else
+                        aux = -2*$symk
+                    end
+                    tup_in = $ctuple
+                    if kodd == 0
+                        aux -= tup_sel(kend + lnull + 1, tup_in)^2
+                    end
+                    $symk = aux/(2*tup_sel(lnull, tup_in))
+                end
             end
-            kodd = (k - lnull)%2
-            kend = div(k - lnull - 2 + kodd, 2)
-            imax = min(lnull + kend, N - 1)
-            imin = max(lnull + 1, k + lnull - N + 1)
-            imin ≤ imax && (@inbounds $(syms[k]) = $(syms[imin])*$(syms[k + lnull - imin]))
         end
-
-        loop = quote
+        expr_quote = quote
+            $expr_quote
+            $temp_expr
         end
-
-        post_loop = quote
-        end
-
-
-        kT = convert(T,k)
-        sym = syms[k+1]
-        ex_line = :($kT * a[$k] * $(syms[1]))
-        @inbounds for i = 1:k-1
-            ex_line = :($ex_line + $(kT-i) * a[$(k-i)] * $(syms[i+1]))
-        end
-        ex_line = :(($ex_line)/$kT)
-        ex_line = :($sym = $ex_line)
-        ex_calc.args[k+1] = ex_line
     end
 
     exout = :(($(syms[1]),))
     for i = 2:N
         push!(exout.args, syms[i])
     end
-
     return quote
-        $start_expr
-        $compute_expr
-        return STaylor1{N,T}($exout)
-    end
+               Base.@_inline_meta
+               $ex_calc
+               $expr_quote
+               return STaylor1{N,T}($exout)
+            end
 end

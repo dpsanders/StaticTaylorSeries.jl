@@ -12,8 +12,14 @@ DataType for polynomial expansions in one independent variable.
 Note that `STaylor1` variables are callable. For more information, see
 [`evaluate`](@ref).
 """
-struct STaylor1{N,T<:Number} <: TaylorSeries.AbstractSeries{T}
+struct STaylor1{N,T<:Number} <: AbstractSeries{T}
     coeffs::NTuple{N,T}
+    function STaylor1{N,T}(coeffs::NTuple{N,T}) where {N, T <: Number}
+        new(coeffs)
+    end
+end
+function STaylor1(coeffs::NTuple{N,T}) where {N, T <: Number}
+    STaylor1{N,T}(coeffs)
 end
 
 ## Outer constructors ##

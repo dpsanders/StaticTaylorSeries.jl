@@ -2,8 +2,15 @@
 
 iszero(a::STaylor1) = all(iszero, a.coeffs)
 
-zero(::STaylor1{N,T}) where {N, T<:Number} = STaylor1(zero(T), Val(N-1))
-one(::STaylor1{N,T}) where {N, T<:Number} = STaylor1(one(T), Val(N-1))
+function zero(::Type{STaylor1{N,T}}) where {N, T<:Number}
+    return STaylor1(zero(T), Val{N-1}())
+end
+zero(a::STaylor1{N,T}) where {N, T<:Number} = zero(STaylor1{N,T})
+
+function one(::Type{STaylor1{N,T}}) where {N, T<:Number}
+    return STaylor1(one(T), Val{N-1}())
+end
+one(a::STaylor1{N,T}) where {N, T<:Number} = one(STaylor1{N,T})
 
 @inline +(a::STaylor1{N,T}, b::STaylor1{N,T}) where {N, T<:Number} = STaylor1(a.coeffs .+ b.coeffs)
 @inline -(a::STaylor1{N,T}, b::STaylor1{N,T}) where {N, T<:Number} = STaylor1(a.coeffs .- b.coeffs)
@@ -64,6 +71,10 @@ end
 
 function /(a::STaylor1{N,T}, b::T) where {N, T<:Number}
     STaylor1{N,T}(a.coeffs ./ b)
+end
+
+function /(b::T, a::STaylor1{N,T}) where {N, T<:Number}
+    return (b*one(STaylor1{N,T}))/a
 end
 
 @generated function /(a::STaylor1{N,T}, b::STaylor1{N,T}) where {N,T<:Number}

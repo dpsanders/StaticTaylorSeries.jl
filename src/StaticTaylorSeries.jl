@@ -1,6 +1,7 @@
 module StaticTaylorSeries
 
-using Requires, TaylorSeries
+using Requires
+using TaylorSeries: AbstractSeries, NumberNotSeries
 
 import Base: ==, +, -, *, /, ^
 

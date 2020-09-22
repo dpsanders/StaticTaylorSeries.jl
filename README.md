@@ -25,7 +25,7 @@ an array.
 - Constructors: Most constructors are similar to those used for Taylor1. The
 constructor `STaylor1(x::T, v::Val{N})` is used in place of `Taylor1(x::T, order::Int)`.
 - In place functions (e.g. `tan!(a,c,k)`) are not supported.
-- Currently, **tan**, **tanh**, **sqrt**, **asin**, **acos**, **atan** are
+- Currently, **tan**, **tanh**, **asin**, **acos**, **atan** are
 unsupported.
 
 #### License
