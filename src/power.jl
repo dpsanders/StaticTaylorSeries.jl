@@ -34,73 +34,97 @@ end
 
 @generated function ^(a::STaylor1{N,T}, r::S) where {N, T<:Number, S<:Real}
 
-    start_quote = quote
-        (iszero(r)) && return one(T)
-        (isone(r)) && return a
-        (r == 2) && return square(a)
-        (r == 0.5) && return sqrt(a)
+    ex_calc = quote end
+    append!(ex_calc.args, Any[nothing for i in 1:N])
+    syms = Symbol[Symbol("c$i") for i in 1:N]
+    ctuple = Expr(:tuple)
+    for i = 1:N
+        push!(ctuple.args, syms[i])
     end
 
-    #exout = :(($(syms[1]),))
-    #for i = 2:N
-    #    push!(exout.args, syms[i])
-    #end
+    for i = 1:N
+        push!(ex_calc.args, :($(syms[i]) = zero(T)))
+    end
 
-    return quote
+    expr_quote = quote
         iszero(r) && return one(a)
         r == 1 && return a
         r == 2 && return square(a)
         r == 1/2 && return sqrt(a)
+        $ex_calc
+    end
 
-        c = STaylor1(zero(T), Val{N}())
-        for k = 0:(N - 1)
-            $continue_quote
-
+    c = STaylor1(zero(T), Val{N}())
+    for k = 0:(N - 1)
+        symk = syms[k + 1]
+        temp_quote = quote
             # First non-zero coefficient
             l0 = findfirst(a)
             if l0 < 0
-                c = STaylor1{N,T}(ntuple(i -> (i == k) ? zero(T) : c[i],  N))
-                continue
-            end
-
-            # The first non-zero coefficient of the result; must be integer
-            !isinteger(r*l0) && throw(ArgumentError(
-                """The 0th order Taylor1 coefficient must be non-zero
-                to raise the Taylor1 polynomial to a non-integer exponent."""))
-            lnull = trunc(Int, r*l0 )
-            kprime = k - lnull
-            if (kprime < 0) || (lnull > a.order)
-                c = STaylor1{N,T}(ntuple(i -> (i == k) ? zero(T) : c[i],  N))
-                continue
-            end
-
-            # Relevant for positive integer r, to avoid round-off errors
-            if isinteger(r) && (k > r*findlast(a))
-                c = STaylor1{N,T}(ntuple(i -> (i == k) ? zero(T) : c[i],  N))
-                continue
-            end
-
-            if k == lnull
-                c = STaylor1{N,T}(ntuple(i -> (i == k) ? a[l0]^r : c[i],  N))
-                continue
-            end
-
-            # The recursion formula
-            if l0 + kprime ≤ (N - 1)
-                c = STaylor1{N,T}(ntuple(i -> (i == k) ? (r*kprime*c[lnull]*a[l0 + kprime]) : c[i],  N))
+                $symk = zero(T)
             else
-                c = STaylor1{N,T}(ntuple(i -> (i == k) ? zero(T) : c[i],  N))
+                # The first non-zero coefficient of the result; must be integer
+                !isinteger(r*l0) && throw(ArgumentError(
+                    """The 0th order Taylor1 coefficient must be non-zero
+                    to raise the Taylor1 polynomial to a non-integer exponent."""))
+                lnull = trunc(Int, r*l0)
+                kprime = k - lnull
+                if (kprime < 0) || (lnull > a.order)
+                    $symk = zero(T)
+                else
+                    # Relevant for positive integer r, to avoid round-off errors
+                    if isinteger(r) && (k > r*findlast(a))
+                        $symk = zero(T)
+                    else
+                        if k == lnull
+                            $symk = a[l0]^r
+                        else
+                            # The recursion formula
+                            if l0 + kprime ≤ (N - 1)
+                                tup_in = $ctuple
+                                $symk = r*kprime*tup_sel(lnull, tup_in)*a[l0 + kprime]
+                            else
+                                $symk = zero(T)
+                            end
+                            for i = 1:(k - lnull - 1)
+                                if !((i + lnull) > (N - 1) || (l0 + kprime - i > (N - 1)))
+                                    aux = r*(kprime - i) - i
+                                    tup_in = $ctuple
+                                    $symk += aux*tup_sel(i + lnull, tup_in)*a[l0 + kprime - i]
+                                end
+                            end
+                            $symk /= kprime*a[l0]
+                        end
+                    end
+                end
             end
-            for i = 1:(k - lnull - 1)
-                ((i + lnull) > (N - 1) || (l0 + kprime - i > (N - 1))) && continue
-                aux = r*(kprime - i) - i
-                c = STaylor1{N,T}(ntuple(i -> (i == k) ? c[k] + aux*c[i+lnull]*a[l0+kprime-i] : c[i],  N))
-            end
-            c = STaylor1{N,T}(ntuple(i -> (i == k) ? c[k]/kprime*a[l0] : c[i],  N))
         end
-
-        return c
+        expr_quote = quote
+            $expr_quote
+            if r == 0
+                # one(c)
+            elseif r == 1
+                # DO NOTHING
+            elseif r == 2
+                # square(c)
+            elseif r == 0.5
+                # sqrt(c)
+            else
+                $temp_quote
+            end
+        end
     end
+
+    exout = :(($(syms[1]),))
+    for i = 2:N
+        push!(exout.args, syms[i])
+    end
+
+    return quote
+               Base.@_inline_meta
+               $expr_quote
+               return STaylor1{N,T}($exout)
+            end
 end
 
 @generated function square(a::STaylor1{N,T}) where {N, T<:Number}
