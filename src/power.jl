@@ -2,7 +2,7 @@ function ^(a::STaylor1{N,T}, n::Integer) where {N,T<:Real}
     n == 0 && return one(a)
     n == 1 && return a
     n == 2 && return square(a)
-    #n < 0 && return a^float(n)
+    n < 0 && return a^float(n)
     return power_by_squaring(a, n)
 end
 
@@ -68,15 +68,15 @@ end
                     """The 0th order Taylor1 coefficient must be non-zero
                     to raise the Taylor1 polynomial to a non-integer exponent."""))
                 lnull = trunc(Int, r*l0)
-                kprime = k - lnull
-                if (kprime < 0) || (lnull > a.order)
+                kprime = $k - lnull
+                if (kprime < 0) || (lnull > N-1)
                     $symk = zero(T)
                 else
                     # Relevant for positive integer r, to avoid round-off errors
-                    if isinteger(r) && (k > r*findlast(a))
+                    if isinteger(r) && ($k > r*findlast(a))
                         $symk = zero(T)
                     else
-                        if k == lnull
+                        if $k == lnull
                             $symk = a[l0]^r
                         else
                             # The recursion formula
@@ -86,7 +86,7 @@ end
                             else
                                 $symk = zero(T)
                             end
-                            for i = 1:(k - lnull - 1)
+                            for i = 1:($k - lnull - 1)
                                 if !((i + lnull) > (N - 1) || (l0 + kprime - i > (N - 1)))
                                     aux = r*(kprime - i) - i
                                     tup_in = $ctuple
@@ -99,16 +99,16 @@ end
                 end
             end
         end
+        one_tup = ntuple(i -> i == 1 ? one(T) : zero(T), Val{N}())
         expr_quote = quote
             $expr_quote
             if r == 0
-                # one(c)
-            elseif r == 1
-                # DO NOTHING
+                $ctuple = $one_tup
+            elseif r == 1 # DO NOTHING
             elseif r == 2
-                # square(c)
+                temp_st1 = square(STaylor1{N,T}($ctuple))
             elseif r == 0.5
-                # sqrt(c)
+                temp_st2 = sqrt(STaylor1{N,T}($ctuple))
             else
                 $temp_quote
             end

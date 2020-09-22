@@ -84,9 +84,10 @@ if !(VERSION < v"1.1" && testfile == "intervals.jl")
                          (-, 1.3, t1, 1.3, t2),  (*, 1.3, t1, 1.3, t2),
                          (^, t1, 0, t2, 0), (^, t1, 1, t2, 1),
                          (^, t1, 2, t2, 2), (^, t1, 3, t2, 3),
-                         (^, t1, 4, t2, 4),  (/, 1.3, t1, 1.3, t2)) #(^, t1,-2, t2, -2))
-
-                         #(^, t1, -1, t2, -1), (^, t1,-2, t2, -2), (^, t1, -3, t2, -3),
+                         (^, t1, 4, t2, 4),  (/, 1.3, t1, 1.3, t2),
+                         (^, t1, -1, t2, -1), (^, t1,-2, t2, -2),
+                         (^, t1, -3, t2, -3), (^, t1, 0.6, t2, 0.6),
+                         (^, t1, 1/2, t2, 1/2))
 
             temp1 = test_tup[1](test_tup[2], test_tup[3])
             temp2 = test_tup[1](test_tup[4], test_tup[5])
@@ -94,10 +95,6 @@ if !(VERSION < v"1.1" && testfile == "intervals.jl")
             @test isapprox(temp1[1], temp2[1], atol=1E-10)
             @test isapprox(temp1[2], temp2[2], atol=1E-10)
         end
-
-        #@test isapprox((1.3/t1)[0], (1.3/t2)[0], atol=1E-10)
-        #@test isapprox((1.3/t1)[1], (1.3/t2)[1], atol=1E-10)
-        #@test isapprox((1.3/t1)[2], (1.3/t2)[2], atol=1E-10)
 
         @test isapprox(StaticTaylorSeries.square(t1)[0], (t2^2)[0], atol=1E-10)
         @test isapprox(StaticTaylorSeries.square(t1)[1], (t2^2)[1], atol=1E-10)
