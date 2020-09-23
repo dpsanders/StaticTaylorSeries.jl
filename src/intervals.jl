@@ -20,17 +20,17 @@ function evaluate(a::STaylor1{N,T}, dx::Interval) where {N, T <: Number}
     return sum_even + sum_odd*dx
 end
 
-normalize_taylor(a::Taylor1{N,S}, I::Interval{T}, symI::Bool=true) where {N, T, S <: Number} =
+normalize_taylor(a::STaylor1{N,T}, I::Interval{T}, symI::Bool=true) where {N, T <: Number} =
     _normalize(a, I, Val(symI))
 
-function _normalize(a::Taylor1, I::Interval{T}, ::Val{true}) where {T}
+function _normalize(a::STaylor1{N,T}, I::Interval{T}, ::Val{true}) where {N, T <: Number}
     t = STaylor1(zero(T), Val{N}())
     tnew = mid(I) + t*radius(I)
     return a(tnew)
 end
 
-function _normalize(a::Taylor1, I::Interval{T}, ::Val{false}) where {T}
-    t = STaylor1(zero(T), Val{N}())
+function _normalize(a::STaylor1{N,T}, I::Interval{T}, ::Val{false}) where {N, T <: Number}
+    t = STaylor1(zero(promote_type(S,T)), Val{N}())
     tnew = inf(I) + t*diam(I)
     return a(tnew)
 end
