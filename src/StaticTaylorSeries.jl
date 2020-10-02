@@ -1,192 +1,44 @@
 module StaticTaylorSeries
 
-export StaticTaylor
+using Requires
+using TaylorSeries: AbstractSeries, NumberNotSeries
 
-"""
-Static Taylor series with variable V, length N (i.e. order N-1) and element type T.
-"""
-struct StaticTaylor{N,T}
-    coeffs::NTuple{N,T}
+import Base: ==, +, -, *, /, ^
+
+import Base: iterate, size, eachindex, firstindex, lastindex,
+    eltype, length, getindex, setindex!, axes, copyto!
+
+import Base: zero, one, zeros, ones, isinf, isnan, iszero,
+             convert, promote_rule, promote, show,
+             real, imag, conj, adjoint,
+             rem, mod, mod2pi, abs, abs2,
+             sqrt, exp, log, sin, cos, tan,
+             asin, acos, atan, sinh, cosh, tanh,
+             power_by_squaring,
+             rtoldefault, isfinite, isapprox, rad2deg, deg2rad
+
+export STaylor1
+
+export getcoeff, derivative, integrate, differentiate,
+       evaluate, evaluate!, inverse, set_taylor1_varname,
+       show_params_TaylorN, show_monomials, displayBigO, use_show_default,
+       get_order, get_numvars, set_variables, get_variables,
+       get_variable_names, get_variable_symbols,
+       taylor_expand, update!, constant_term, linear_polynomial,
+       normalize_taylor, evaluate
+
+include("constructors.jl")
+include("conversion.jl")
+include("auxiliary.jl")
+include("arithmetic.jl")
+include("power.jl")
+include("functions.jl")
+include("other_functions.jl")
+include("evaluate.jl")
+include("printing.jl")
+
+function __init__()
+    @require IntervalArithmetic = "d1acc4aa-44c8-5952-acd4-ba5d80a2a253" include("intervals.jl")
 end
-
-
-function coeffstring(t::StaticTaylor, i, variable=:x)
-
-    if i == 1  # order 0
-        return string(t.coeffs[i])
-
-    elseif i == 2  # order 1
-        return string(t.coeffs[i], variable)
-
-    else
-        return string(t.coeffs[i], variable, "^", i-1)
-    end
-end
-
-
-function print_taylor(io::IO, t::StaticTaylor, variable=:x)
-
-    print(io, "(" * join([coeffstring(t, i, variable) for i in 1:length(t.coeffs)], " + ") * ")")
-
-end
-
-function Base.show(io::IO, t::StaticTaylor)
-    print_taylor(io, t)
-end
-
-function Base.show(io::IO, t::StaticTaylor{N,T}) where {N, T<:StaticTaylor}
-    print_taylor(io, t, :y)
-end
-
-#StaticTaylor(iterable...) = StaticTaylor(SVector(iterable...))
-
-StaticTaylor{N}(v::NTuple{N,T}) where {N,T} = StaticTaylor(v)
-
-
-
-#StaticTaylor{N}(iterable) where {N} = StaticTaylor{N}(iterable)
-
-StaticTaylor{N}(iterable...) where {N} = StaticTaylor{N}(iterable)
-
-# StaticTaylor(v) = StaticTaylor(v)
-
-StaticTaylor(iterable...) = StaticTaylor{length(iterable)}(iterable)
-
-import Base:getindex, length, eltype
-
-getindex(s::StaticTaylor, i::Integer) = s.coeffs[i+1]
-
-length(s::StaticTaylor{N,T}) where {N,T} = N
-
-eltype(s::StaticTaylor{N,T}) where {N,T} = T
-
-
-import Base: +, -, * ,^
-
-function +(s::StaticTaylor{N,T}, t::StaticTaylor{N,T}) where {N,T}
-    return StaticTaylor(s.coeffs .+ t.coeffs)
-end
-
-function +(s::StaticTaylor{N,T}, α::Real) where {N,T}
-    return StaticTaylor{N,T}(ntuple(i -> i == 1 ? s.coeffs[1] + α : s.coeffs[i], N))
-end
-
-+(α::Real, s::StaticTaylor) = s + α
-
--(s::StaticTaylor) = StaticTaylor(.-(s.coeffs))
-
-function -(s::StaticTaylor{N,T}, t::StaticTaylor{N,T}) where {N,T}
-    return StaticTaylor(s.coeffs .- t.coeffs)
-end
-
--(s::StaticTaylor, α::Real) = s + (-α)
-
--(α::Real, s::StaticTaylor) = -(s - a)
-
-
-
-
-
-Base.literal_pow(::typeof(^), x::StaticTaylor, ::Val{p}) where {p} = x^p
-
-^(x::StaticTaylor, n::Integer) = Base.power_by_squaring(x, n)
-
-
-
-# function *(s::StaticTaylor{N,T}, t::StaticTaylor{N,T}) where {N,T}
-#     v = SVector(ntuple(k->sum(s[i]*t[k-1-i] for i in 0:k-1), Val(N)))
-#     return StaticTaylor(v)
-# end
-
-# The following is modified from StaticUnivariatePolynomials.jl
-@generated function Base.:*(p1::StaticTaylor{N,T}, p2::StaticTaylor{N,T}, max_degree=N) where {N, T}
-    exprs = Any[nothing for i in 1:N]
-    for i in 0 : N-1   # order is N-1
-        for j in 0 : N-1
-            k = i + j + 1  # setindex does not have offset
-
-            if k > max_degree
-                continue
-            end
-
-            if exprs[k] === nothing
-                exprs[k] = :(p1[$i] * p2[$j])
-            else
-                exprs[k] = :(muladd(p1[$i], p2[$j], $(exprs[k])))
-            end
-        end
-    end
-
-    # Core.println("Generated code with N=$N:")
-    # Core.println(exprs)
-    # Core.println()
-
-    return quote
-        Base.@_inline_meta
-        StaticTaylor{N,T}(tuple($(exprs...)))
-    end
-end
-
-@generated function mult(p1::StaticTaylor{N,T}, p2::StaticTaylor{N,T}, ::Val{max_degree}) where {N, T, max_degree}
-    exprs = Any[nothing for i in 1:max_degree]
-    for i in 0 : N-1   # order is N-1
-        for j in 0 : N-1
-            k = i + j + 1  # setindex does not have offset
-
-            if k > max_degree
-                continue
-            end
-
-            if exprs[k] === nothing
-                exprs[k] = :(p1[$i] * p2[$j])
-            else
-                exprs[k] = :(muladd(p1[$i], p2[$j], $(exprs[k])))
-            end
-        end
-    end
-
-    # Core.println("Generated code with N=$N:")
-    # Core.println(exprs)
-    # Core.println()
-
-    return quote
-        Base.@_inline_meta
-        StaticTaylor{max_degree,T}(tuple($(exprs...)))
-    end
-end
-#
-# @generated function *(p1::StaticTaylor{N,T}, p2::StaticTaylor{N,T}) where {N, T}
-#     exprs = Any[nothing for i in 1:N]
-#     for i in 0 : N-1   # order is N-1
-#         for j in 0 : N-1
-#             k = i + j + 1  # setindex does not have offset
-#
-#             if k > N
-#                 continue
-#             end
-#
-#             if exprs[k] === nothing
-#                 exprs[k] = :(p1[$i] * p2[$j])
-#             else
-#                 exprs[k] = :(muladd(p1[$i], p2[$j], $(exprs[k])))
-#             end
-#         end
-#     end
-#
-#     # Core.println("Generated code with N=$N:")
-#     # Core.println(exprs)
-#     # Core.println()
-#
-#     return quote
-#         Base.@_inline_meta
-#         StaticTaylor{N,T}(tuple($(exprs...)))
-#     end
-# end
-
-
-*(s::StaticTaylor, α::Real) = StaticTaylor(α .* s.coeffs)
-*(α::Real, s::StaticTaylor) = s * α
-
-/(s::StaticTaylor, α::Real) = StaticTaylor(s.coeffs ./ α)
 
 end # module
